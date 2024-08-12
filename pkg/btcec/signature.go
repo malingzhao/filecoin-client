@@ -391,6 +391,53 @@ func SignCompact(curve *KoblitzCurve, key *PrivateKey,
 	return nil, errors.New("no valid solution for pubkey found")
 }
 
+// SignCompact produces a compact signature of the data in hash with the given
+// private key on the given koblitz curve. The isCompressed  parameter should
+// be used to detail if the given signature should reference a compressed
+// public key or not. If successful the bytes of the compact signature will be
+// returned in the format:
+// <(byte of 27+public key solution)+4 if compressed >< padded bytes for signature R><padded bytes for signature S>
+// where the R and S parameters are padde up to the bitlengh of the curve.
+func SignCompact2(curve *KoblitzCurve, key PublicKey, isCompressedKey bool, R *big.Int, S *big.Int, hash []byte) ([]byte, error) {
+
+	sig := &Signature{R: R, S: S}
+
+	// bitcoind checks the bit length of R and S here. The ecdsa signature
+	// algorithm returns R and S mod N therefore they will be the bitsize of
+	// the curve, and thus correctly sized.
+	for i := 0; i < (curve.H+1)*2; i++ {
+		pk, err := recoverKeyFromSignature(curve, sig, hash, i, true)
+		if err == nil && pk.X.Cmp(key.X) == 0 && pk.Y.Cmp(key.Y) == 0 {
+			result := make([]byte, 1, 2*curve.byteSize+1)
+			result[0] = 27 + byte(i)
+			if isCompressedKey {
+				result[0] += 4
+			}
+			// Not sure this needs rounding but safer to do so.
+			curvelen := (curve.BitSize + 7) / 8
+
+			// Pad R and S to curvelen if needed.
+			bytelen := (sig.R.BitLen() + 7) / 8
+			if bytelen < curvelen {
+				result = append(result,
+					make([]byte, curvelen-bytelen)...)
+			}
+			result = append(result, sig.R.Bytes()...)
+
+			bytelen = (sig.S.BitLen() + 7) / 8
+			if bytelen < curvelen {
+				result = append(result,
+					make([]byte, curvelen-bytelen)...)
+			}
+			result = append(result, sig.S.Bytes()...)
+
+			return result, nil
+		}
+	}
+
+	return nil, errors.New("no valid solution for pubkey found")
+}
+
 // RecoverCompact verifies the compact signature "signature" of "hash" for the
 // Koblitz curve in "curve". If the signature matches then the recovered public
 // key will be returned as well as a boolen if the original key was compressed

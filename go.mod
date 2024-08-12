@@ -3,6 +3,9 @@ module github.com/myxtype/filecoin-client
 go 1.15
 
 require (
+	github.com/btcsuite/btcd/btcec/v2 v2.3.4
+	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
+	github.com/davecgh/go-spew v1.1.1
 	github.com/filecoin-project/go-address v0.0.4
 	github.com/filecoin-project/go-state-types v0.0.0-20201013222834-41ea465f274f
 	github.com/ipfs/go-block-format v0.0.2
